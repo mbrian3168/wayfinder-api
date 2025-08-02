@@ -1,9 +1,9 @@
 {
   "name": "wayfinder-api-secure",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "main": "dist/server.js",
   "scripts": {
-    "build": "prisma db push --schema=./prisma/schema.prisma && tsc",
+    "build": "tsc",
     "start": "node dist/server.js",
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
     "postinstall": "prisma generate"
