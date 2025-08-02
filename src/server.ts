@@ -22,8 +22,17 @@ app.use('/v1/partner', partnerRoutes);
 app.use('/v1/audio', audioRoutes);
 app.use('/v1/sdk', sdkRoutes);
 
+// Health check endpoint
 app.get('/health', (req, res) => {
   res.status(200).send('Wayfinder API is healthy');
+});
+
+// Root welcome route
+app.get('/', (req, res) => {
+  res.status(200).json({
+    message: 'Welcome to the Wayfinder API. The API is healthy.',
+    documentation: 'https://docs.wayfinder.app' // A placeholder for future documentation
+  });
 });
 
 app.listen(PORT, () => {
