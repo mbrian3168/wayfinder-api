@@ -2,18 +2,18 @@ generator client {
   provider = "prisma-client-js"
 }
 
- datasource db {
+datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+  url      = env("DATABASE_URL") + "?pgbouncer=true"
 }
 
- enum TripStatus {
+enum TripStatus {
   ACTIVE
   COMPLETED
   CANCELED
 }
 
- enum POICategory {
+enum POICategory {
   LANDMARK
   NATURE
   PARTNER_LOCATION
@@ -21,25 +21,25 @@ generator client {
   TRAFFIC_ALERT
 }
 
- enum HostPersonaType {
+enum HostPersonaType {
   HOST
   NAVIGATOR
 }
 
- enum TTSService {
+enum TTSService {
   ELEVENLABS
   GOOGLE_TTS
   PLAY_HT
 }
 
- enum BanterEventContext {
+enum BanterEventContext {
   TRAFFIC_JAM
   BEAUTIFUL_WEATHER
   HALFWAY_POINT
   NEARING_DESTINATION
 }
 
- model User {
+model User {
   id             String    @id @default(uuid())
   firebaseUid    String    @unique @map("firebase_uid")
   activeTripId   String?   @map("active_trip_id")
@@ -49,7 +49,7 @@ generator client {
   @@map("users")
 }
 
- model Partner {
+model Partner {
   id            String    @id @default(uuid())
   name          String
   contactEmail  String    @unique @map("contact_email")
@@ -59,7 +59,7 @@ generator client {
   @@map("partners")
 }
 
- model Trip {
+model Trip {
   id             String     @id @default(uuid())
   userId         String     @map("user_id")
   hostId         String     @map("host_id")
@@ -78,7 +78,7 @@ generator client {
   @@map("trips")
 }
 
- model POI {
+model POI {
   id                   String      @id @default(uuid())
   partnerId            String?     @map("partner_id")
   name                 String
@@ -94,7 +94,7 @@ generator client {
   @@map("pois")
 }
 
- model Message {
+model Message {
   id                   String   @id @default(uuid())
   poiId                String   @map("poi_id")
   hostId               String   @map("host_id")
@@ -108,7 +108,7 @@ generator client {
   @@map("messages")
 }
 
- model Trigger {
+model Trigger {
   id         String @id @default(uuid())
   messageId  String @map("message_id")
   priority   Int
@@ -119,7 +119,7 @@ generator client {
   @@map("triggers")
 }
 
- model HostProfile {
+model HostProfile {
   id           String          @id @default(uuid())
   name         String          @unique
   personaType  HostPersonaType @map("persona_type")
@@ -134,7 +134,7 @@ generator client {
   @@map("host_profiles")
 }
 
- model AudioPack {
+model AudioPack {
   id            String   @id @default(uuid())
   name          String   @unique
   description   String
@@ -145,7 +145,7 @@ generator client {
   @@map("audio_packs")
 }
 
- model BanterEvent {
+model BanterEvent {
   id                String             @id @default(uuid())
   triggeringContext BanterEventContext @map("triggering_context")
   hostLine          String             @map("host_line")
