@@ -6,7 +6,7 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
-    "postinstall": "prisma generate"
+    "postin "npx prisma generate"
   },
   "dependencies": {
     "@prisma/client": "^5.15.0",
