@@ -1,49 +1,36 @@
-import express from 'express';
-import cors from 'cors';
-import dotenv from 'dotenv';
+import express, { Request, Response } from 'express';
 import path from 'path';
-import { initializeFirebase } from './config/firebase';
+import cors from 'cors';
+import helmet from 'helmet';
+import morgan from 'morgan';
+import { json } from 'body-parser';
+import dotenv from 'dotenv';
+import routes from './routes';
 
 dotenv.config();
-initializeFirebase();
-
-import tripRoutes from './routes/tripRoutes';
-import partnerRoutes from './routes/partnerRoutes';
-import audioRoutes from './routes/audioRoutes';
-import sdkRoutes from './routes/sdkRoutes';
 
 const app = express();
-const PORT = process.env.PORT || 8080;
 
 // Middleware
 app.use(cors());
-app.use(express.json());
+app.use(helmet());
+app.use(json());
+app.use(morgan('dev'));
 
-// API routes
-app.use('/v1/trip', tripRoutes);
-app.use('/v1/partner', partnerRoutes);
-app.use('/v1/audio', audioRoutes);
-app.use('/v1/sdk', sdkRoutes);
+// Serve static files from /public
+app.use(express.static(path.join(__dirname, '../public')));
 
 // Health check
-app.get('/health', (_req, res) => {
+app.get('/health', (_req: Request, res: Response) => {
   res.status(200).send('Wayfinder API is healthy');
 });
 
-// Serve static files from /public (for index.html)
-const publicDir = path.join(__dirname, '..', 'public');
-app.use(express.static(publicDir));
+// API routes
+app.use('/api', routes);
 
-// Fallback to index.html for root and unknown routes
-app.get('*', (_req, res) => {
-  res.sendFile(path.join(publicDir, 'index.html'));
+// Fallback for SPA (e.g., React routing or vanilla index.html)
+app.get('*', (_req: Request, res: Response) => {
+  res.sendFile(path.join(__dirname, '../public/index.html'));
 });
 
-// Local dev server (Vercel uses the export)
-if (require.main === module) {
-  app.listen(PORT, () => {
-    console.log(`🧭 Wayfinder API server running on port ${PORT}`);
-  });
-}
-
-export default app; // Required for Vercel
+export default app;
