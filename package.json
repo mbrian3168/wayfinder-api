@@ -3,9 +3,9 @@
   "version": "1.5.0",
   "main": "dist/server.js",
   "scripts": {
-    "build": "tsc",
+    "build": "npx tsc",
     "start": "node dist/server.js",
-    "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
+    "dev": "npx ts-node-dev --respawn --transpile-only src/server.ts",
     "postinstall": "npx prisma generate"
   },
   "dependencies": {
