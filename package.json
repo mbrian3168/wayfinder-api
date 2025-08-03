@@ -2,12 +2,13 @@
   "name": "wayfinder-api-secure",
   "version": "1.5.0",
   "main": "dist/server.js",
-  "scripts": {
-    "build": "tsc",
-    "start": "node dist/server.js",
-    "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
-    "postin "npx prisma generate"
-  },
+  
+      "scripts": {
+      "build": "tsc",
+      "start": "node dist/server.js",
+      "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
+      "postinstall": "npx prisma" generate"
+    },
   "dependencies": {
     "@prisma/client": "^5.15.0",
     "cors": "^2.8.5",
