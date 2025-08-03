@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import path from 'path';
 import { initializeFirebase } from './config/firebase';
 
 dotenv.config();
@@ -14,29 +15,35 @@ import sdkRoutes from './routes/sdkRoutes';
 const app = express();
 const PORT = process.env.PORT || 8080;
 
+// Middleware
 app.use(cors());
 app.use(express.json());
 
+// API routes
 app.use('/v1/trip', tripRoutes);
 app.use('/v1/partner', partnerRoutes);
 app.use('/v1/audio', audioRoutes);
 app.use('/v1/sdk', sdkRoutes);
 
-// Health check endpoint
-app.get('/health', (req, res) => {
+// Health check
+app.get('/health', (_req, res) => {
   res.status(200).send('Wayfinder API is healthy');
 });
 
-// Root welcome route
-app.get('/', (req, res) => {
-  res.status(200).json({
-    message: 'Welcome to the Wayfinder API. The API is healthy.',
-    documentation: 'https://docs.wayfinder.app' // A placeholder for future documentation
-  });
+// Serve static files from /public (for index.html)
+const publicDir = path.join(__dirname, '..', 'public');
+app.use(express.static(publicDir));
+
+// Fallback to index.html for root and unknown routes
+app.get('*', (_req, res) => {
+  res.sendFile(path.join(publicDir, 'index.html'));
 });
 
-app.listen(PORT, () => {
-  console.log(`🧭 Wayfinder API server running on port ${PORT}`);
-});
+// Local dev server (Vercel uses the export)
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`🧭 Wayfinder API server running on port ${PORT}`);
+  });
+}
 
 export default app; // Required for Vercel
