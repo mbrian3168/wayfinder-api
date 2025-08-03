@@ -1,9 +1,9 @@
 {
   "name": "wayfinder-api-secure",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "main": "dist/server.js",
   "scripts": {
-    "build": "npx tsc",
+    "build": "tsc && copyfiles -u 1 public/**/* dist",
     "start": "node dist/server.js",
     "dev": "npx ts-node-dev --respawn --transpile-only src/server.ts",
     "postinstall": "npx prisma generate"
@@ -22,6 +22,7 @@
     "@types/node": "^20.14.2",
     "prisma": "^5.15.0",
     "ts-node-dev": "^2.0.0",
-    "typescript": "^5.4.5"
+    "typescript": "^5.4.5",
+    "copyfiles": "^2.4.1"
   }
 }
