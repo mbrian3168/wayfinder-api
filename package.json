@@ -1,29 +1,28 @@
 {
-  "name": "wayfinder-api-secure",
-  "version": "1.6.0",
- "main": "dist/server.js",
-"scripts": {
-  "build": "npx prisma generate && tsc && copyfiles -u 1 public/**/* dist/public",
-  "start": "node dist/server.js",
-  "dev": "npx ts-node-dev --respawn --transpile-only src/server.ts"
-},
+  "name": "wayfinder-api",
+  "version": "1.7.0",
+  "private": true,
+  "main": "dist/server.js",
+  "type": "commonjs",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev --name init"
+  },
   "dependencies": {
     "@prisma/client": "^5.15.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
     "firebase-admin": "^12.1.1",
-    "helmet": "^7.0.0",
-    "morgan": "^1.10.0",
-    "zod": "^3.23.8"
+    "helmet": "^7.1.0"
   },
   "devDependencies": {
     "@types/cors": "^2.8.17",
     "@types/express": "^4.17.21",
     "@types/node": "^20.14.2",
-    "@types/helmet": "^7.0.0",
-    "@types/morgan": "^1.9.6",
-    "copyfiles": "^2.4.1",
     "prisma": "^5.15.0",
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.4.5"
