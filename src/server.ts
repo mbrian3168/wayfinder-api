@@ -1,9 +1,8 @@
-import dotenv from 'dotenv';
+// src/server.ts
 import app from './app';
 
-dotenv.config();
+const PORT = process.env.PORT ? Number(process.env.PORT) : 8080;
 
-const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => {
-  console.log(`🧭 Wayfinder API server (local) on http://localhost:${PORT}`);
+  console.log(`🧭 Wayfinder API (dev) listening on http://localhost:${PORT}`);
 });
