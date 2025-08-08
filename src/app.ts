@@ -2,12 +2,14 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import path from 'path';
+import fs from 'fs';
 import { initializeFirebase } from './config/firebase';
 
 // Load env
 dotenv.config();
 
-// Initialize Firebase Admin once (safe to call; SDK guards against dup)
+// Initialize Firebase Admin (idempotent)
 initializeFirebase();
 
 import tripRoutes from './routes/tripRoutes';
@@ -23,7 +25,7 @@ app.use(express.json());
 
 /* --------------------------- Public endpoints --------------------------- */
 
-// HTML landing page at "/"
+// HTML landing at "/"
 app.get('/', (_req, res) => {
   res
     .status(200)
@@ -52,7 +54,7 @@ app.get('/', (_req, res) => {
         <li><a href="/v1">/v1</a> – API index (JSON)</li>
         <li><a href="/v1/health">/v1/health</a> – health check</li>
         <li><a href="/v1/status">/v1/status</a> – runtime info</li>
-        <li><a href="/v1/docs">/v1/docs</a> – docs placeholder</li>
+        <li><a href="/v1/docs">/v1/docs</a> – interactive API docs</li>
       </ul>
       <p>Protected (require Firebase auth):</p>
       <ul>
@@ -77,7 +79,8 @@ app.get('/v1', (_req, res) => {
         index: '/v1',
         health: '/v1/health',
         status: '/v1/status',
-        docs: '/v1/docs'
+        docs: '/v1/docs',
+        openapi: '/v1/openapi.yaml'
       },
       trip: {
         start: 'POST /v1/trip/start',
@@ -99,17 +102,16 @@ app.get('/v1', (_req, res) => {
         eventReport: 'POST /v1/sdk/event-report'
       }
     },
-    docs: 'Visit /v1/docs (placeholder)',
     repo: 'https://github.com/mbrian3168/wayfinder-api'
   });
 });
 
-// Health (already used by you)
+// Health
 app.get('/v1/health', (_req, res) => {
   res.status(200).json({ ok: true, service: 'Wayfinder API', version: 'v1' });
 });
 
-// Status (safe runtime info)
+// Status
 app.get('/v1/status', (_req, res) => {
   res.status(200).json({
     ok: true,
@@ -125,12 +127,47 @@ app.get('/v1/status', (_req, res) => {
   });
 });
 
-// Docs placeholder
+// Serve the OpenAPI YAML
+app.get('/v1/openapi.yaml', (_req, res) => {
+  try {
+    const filePath = path.join(process.cwd(), 'src', 'openapi', 'wayfinder_openapi_v1.yaml');
+    const yaml = fs.readFileSync(filePath, 'utf8');
+    res.setHeader('Content-Type', 'text/yaml; charset=utf-8');
+    res.status(200).send(yaml);
+  } catch (err) {
+    console.error('Failed to serve OpenAPI YAML:', err);
+    res.status(500).json({ error: 'OpenAPI spec not found' });
+  }
+});
+
+// Swagger UI (from CDN) pointing at our YAML
 app.get('/v1/docs', (_req, res) => {
-  res.status(200).json({
-    message: 'API docs coming soon. For now, see the repository README.',
-    repo: 'https://github.com/mbrian3168/wayfinder-api'
-  });
+  res
+    .status(200)
+    .type('html')
+    .send(`<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Wayfinder API Docs</title>
+    <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css" />
+    <style>body { margin: 0; } #swagger-ui { max-width: 1100px; margin: 0 auto; }</style>
+  </head>
+  <body>
+    <div id="swagger-ui"></div>
+    <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
+    <script>
+      window.onload = () => {
+        window.ui = SwaggerUIBundle({
+          url: '/v1/openapi.yaml',
+          dom_id: '#swagger-ui',
+          presets: [SwaggerUIBundle.presets.apis],
+          layout: 'BaseLayout'
+        });
+      };
+    </script>
+  </body>
+</html>`);
 });
 
 /* --------------------------- Auth-protected routes --------------------------- */
