@@ -1,7 +1,6 @@
 // api/index.ts
 import app from '../src/app';
 
-// Vercel passes (req, res) — Express app is a compatible handler.
-export default function handler(req: any, res: any) {
-  return app(req, res);
-}
+// Vercel will detect and wrap this Express app automatically.
+// Do NOT call app.listen() here.
+export default app;
