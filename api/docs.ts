@@ -1,3 +1,5 @@
+// api/docs.ts
+// Minimal Swagger UI that reads the static /openapi.json
 export default function handler(_req: any, res: any) {
   const html = `<!doctype html>
 <html>
