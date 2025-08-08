@@ -1,16 +1,13 @@
 {
   "compilerOptions": {
-    "target": "es2017",                         // Slightly more modern target
+    "target": "es2016",
     "module": "commonjs",
-    "rootDir": "./src",                         // Good: keeps src as your source folder
-    "outDir": "./dist",                         // Good: transpiled files go to dist
+    "rootDir": "./",
+    "outDir": "./dist",
     "esModuleInterop": true,
-    "resolveJsonModule": true,                  // In case you import JSON config/data
-    "moduleResolution": "node",                 // Helps with route/index resolution
     "forceConsistentCasingInFileNames": true,
     "strict": true,
     "skipLibCheck": true
   },
-  "include": ["src"],
-  "exclude": ["node_modules", "dist"]
+  "include": ["src", "api"]
 }
