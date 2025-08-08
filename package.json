@@ -8,12 +8,15 @@
     "node": "20.x"
   },
   "scripts": {
-    "openapi:build": "ts-node scripts/build-openapi.ts",
-    "openapi:lint": "redocly lint openapi.json",
-    "openapi:check": "node scripts/check-visibility.js",
-    "openapi:types": "openapi-typescript openapi.json -o src/types/openapi.d.ts",
-    "vercel-build": "npm run openapi:build && npm run openapi:lint && npm run openapi:check && npm run openapi:types",
-    "build": "npm run vercel-build"
+  "openapi:build": "ts-node scripts/build-openapi.ts",
+  "openapi:lint": "redocly lint openapi.json",
+  "openapi:check": "node scripts/check-visibility.js",
+  "openapi:types": "openapi-typescript openapi.json -o src/types/openapi.d.ts",
+  "vercel-build": "npm run openapi:build && npm run openapi:lint && npm run openapi:check && npm run openapi:types",
+  "build": "npm run vercel-build",
+  "start": "node api/index.js"
+}
+
   },
   "dependencies": {
     "@asteasolutions/zod-to-openapi": "^7.1.0",
