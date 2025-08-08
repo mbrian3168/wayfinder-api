@@ -12,7 +12,8 @@
     "openapi:lint": "redocly lint openapi.json",
     "openapi:check": "node scripts/check-visibility.js",
     "openapi:types": "openapi-typescript openapi.json -o src/types/openapi.d.ts",
-    "prebuild": "npm run openapi:build && npm run openapi:lint && npm run openapi:check && npm run openapi:types"
+"vercel-build": "npm run openapi:build && npm run openapi:lint && npm run openapi:check && npm run openapi:types",
+"build": "npm run vercel-build"
   },
   "dependencies": {
     "@asteasolutions/zod-to-openapi": "^7.1.0",
