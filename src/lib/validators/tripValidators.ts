@@ -9,12 +9,14 @@ export const startTripSchema = z.object({
   body: z.object({
     origin: CoordinatesSchema,
     destination: CoordinatesSchema,
-    host_id: z.string().uuid(),
+    host_id: z.string().uuid('Invalid Host ID format.'),
   }),
 });
 
 export const updateTripSchema = z.object({
-  params: z.object({ id: z.string().uuid() }),
+  params: z.object({
+    id: z.string().uuid('Invalid Trip ID format.'),
+  }),
   body: z.object({
     current_location: CoordinatesSchema.optional(),
     eta_seconds: z.number().int().positive().optional(),
@@ -22,13 +24,7 @@ export const updateTripSchema = z.object({
 });
 
 export const tripIdParamSchema = z.object({
-    params: z.object({ id: z.string().uuid() })
-});
-
-export const nearbyPoisQuerySchema = z.object({
-    query: z.object({
-        latitude: z.string().transform(val => parseFloat(val)).refine(val => !isNaN(val)),
-        longitude: z.string().transform(val => parseFloat(val)).refine(val => !isNaN(val)),
-        radius: z.string().transform(val => parseInt(val, 10)).refine(val => !isNaN(val)).optional(),
-    })
+  params: z.object({
+    id: z.string().uuid('Invalid Trip ID format.'),
+  }),
 });
