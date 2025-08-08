@@ -1,0 +1,362 @@
+openapi: 3.0.3
+info:
+  title: Wayfinder API
+  version: "1.0.0"
+  description: |
+    API for the Wayfinder platform: trips, POIs, dynamic audio, partner content,
+    and SDK initialization. This spec matches the current MVP endpoints.
+
+servers:
+  - url: https://wayfinder-api.vercel.app
+
+paths:
+  /v1/health:
+    get:
+      summary: Health check
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  service: { type: string }
+                  version: { type: string }
+
+  /v1/status:
+    get:
+      summary: Runtime status
+      responses:
+        '200':
+          description: OK
+
+  /v1/trip/start:
+    post:
+      summary: Start a new trip
+      security: [ { bearerAuth: [] } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                origin: { $ref: '#/components/schemas/Coordinates' }
+                destination: { $ref: '#/components/schemas/Coordinates' }
+                host_id:
+                  type: string
+                  format: uuid
+      responses:
+        '201':
+          description: Trip created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Trip'
+
+  /v1/trip/{id}/update:
+    patch:
+      summary: Update a trip
+      security: [ { bearerAuth: [] } ]
+      parameters:
+        - in: path
+          name: id
+          schema: { type: string, format: uuid }
+          required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                current_location: { $ref: '#/components/schemas/Coordinates' }
+                eta_seconds: { type: integer, minimum: 0 }
+      responses:
+        '200': { description: Updated }
+
+  /v1/trip/{id}/nearby-pois:
+    get:
+      summary: Get POIs near current location
+      security: [ { bearerAuth: [] } ]
+      parameters:
+        - in: path
+          name: id
+          schema: { type: string, format: uuid }
+          required: true
+        - in: query
+          name: latitude
+          schema: { type: number }
+          required: true
+        - in: query
+          name: longitude
+          schema: { type: number }
+          required: true
+        - in: query
+          name: radius_meters
+          schema: { type: integer, minimum: 10, default: 1000 }
+        - in: query
+          name: category
+          schema:
+            type: string
+            enum: [landmark, nature, partner_location, fun_fact, traffic_alert]
+      responses:
+        '200':
+          description: A list of POIs
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/POI' }
+
+  /v1/trip/{id}/trigger-event:
+    post:
+      summary: Log/trigger a trip event
+      security: [ { bearerAuth: [] } ]
+      parameters:
+        - in: path
+          name: id
+          schema: { type: string, format: uuid }
+          required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                eventType: { type: string }
+                poiId: { type: string, format: uuid }
+      responses:
+        '200': { description: Logged }
+
+  /v1/partner/{id}/poi:
+    post:
+      summary: Partner creates a POI
+      parameters:
+        - in: path
+          name: id
+          schema: { type: string, format: uuid }
+          required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/POICreate'
+      responses:
+        '201': { description: Created }
+
+  /v1/partner/{id}/schedule-message:
+    post:
+      summary: Partner schedules a message for a POI
+      parameters:
+        - in: path
+          name: id
+          schema: { type: string, format: uuid }
+          required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                poi_id: { type: string, format: uuid }
+                text_content: { type: string }
+                triggers:
+                  type: array
+                  items: { $ref: '#/components/schemas/Trigger' }
+      responses:
+        '201': { description: Created }
+
+  /v1/audio/stream/{message_id}:
+    get:
+      summary: Fetch a pregenerated audio stream
+      security: [ { bearerAuth: [] } ]
+      parameters:
+        - in: path
+          name: message_id
+          schema: { type: string, format: uuid }
+          required: true
+      responses:
+        '200': { description: OK }
+
+  /v1/audio/generate:
+    post:
+      summary: Generate dynamic TTS audio
+      security: [ { bearerAuth: [] } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                text: { type: string }
+                host_id: { type: string, format: uuid }
+      responses:
+        '201':
+          description: Audio stream URL
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  stream_url: { type: string, format: uri }
+
+  /v1/sdk/init:
+    get:
+      summary: Initialize SDK
+      security: [ { bearerAuth: [] } ]
+      responses:
+        '200':
+          description: SDK config
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  voice_pack: { type: string }
+                  enable_banter_engine: { type: boolean }
+                  api_version: { type: string }
+
+  /v1/sdk/event-report:
+    post:
+      summary: SDK analytics event
+      security: [ { bearerAuth: [] } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                eventName: { type: string }
+                metadata: { type: object, additionalProperties: true }
+      responses:
+        '200': { description: OK }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    Coordinates:
+      type: object
+      required: [latitude, longitude]
+      properties:
+        latitude: { type: number, format: double }
+        longitude: { type: number, format: double }
+
+    Trip:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        user_id: { type: string, format: uuid }
+        host_id: { type: string, format: uuid }
+        status:
+          type: string
+          enum: [active, completed, canceled]
+        origin: { $ref: '#/components/schemas/Coordinates' }
+        destination: { $ref: '#/components/schemas/Coordinates' }
+        route_geometry:
+          type: object
+          description: GeoJSON LineString
+        started_at: { type: string, format: date-time }
+        ended_at: { type: string, format: date-time, nullable: true }
+
+    POI:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        partner_id: { type: string, format: uuid, nullable: true }
+        name: { type: string }
+        description: { type: string }
+        category:
+          type: string
+          enum: [landmark, nature, partner_location, fun_fact, traffic_alert]
+        location: { $ref: '#/components/schemas/Coordinates' }
+        geofence_radius_meters: { type: integer }
+
+    POICreate:
+      type: object
+      required: [name, description, category, location, geofence_radius_meters]
+      properties:
+        name: { type: string }
+        description: { type: string }
+        category:
+          type: string
+          enum: [landmark, nature, partner_location, fun_fact, traffic_alert]
+        location: { $ref: '#/components/schemas/Coordinates' }
+        geofence_radius_meters: { type: integer, minimum: 10 }
+
+    Message:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        poi_id: { type: string, format: uuid }
+        host_id: { type: string, format: uuid }
+        text_content: { type: string }
+        pregenerated_audio_url: { type: string, format: uri, nullable: true }
+
+    Trigger:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        message_id: { type: string, format: uuid }
+        priority: { type: integer }
+        conditions:
+          type: array
+          items:
+            type: object
+            properties:
+              type:
+                type: string
+                enum: [distance_to_poi, eta_to_destination, speed, time_of_day]
+              operator:
+                type: string
+                enum: [less_than, greater_than, equal_to, between]
+              value:
+                description: Number/string/array depending on operator
+                oneOf:
+                  - { type: number }
+                  - { type: string }
+                  - { type: array, items: { type: number }, minItems: 2, maxItems: 2 }
+                  - { type: array, items: { type: string }, minItems: 2, maxItems: 2 }
+
+    HostProfile:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        persona_type: { type: string, enum: [host, navigator] }
+        description: { type: string }
+        tts_service: { type: string, enum: [elevenlabs, google_tts, play_ht] }
+        tts_voice_id: { type: string }
+
+    AudioPack:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        description: { type: string }
+        host_ids:
+          type: array
+          items: { type: string, format: uuid }
+        music_theme_id: { type: string }
+
+    BanterEvent:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        triggering_context:
+          type: string
+          enum: [traffic_jam, beautiful_weather, halfway_point, nearing_destination]
+        host_line: { type: string }
+        navigator_line: { type: string }
