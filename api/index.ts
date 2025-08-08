@@ -1,7 +1,7 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
+// api/index.ts
 import app from '../src/app';
 
-export default function handler(req: VercelRequest, res: VercelResponse) {
-  // @ts-expect-error Express compatibility
+// Vercel passes (req, res) — Express app is a compatible handler.
+export default function handler(req: any, res: any) {
   return app(req, res);
 }
