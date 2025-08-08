@@ -1,0 +1,7 @@
+// ...imports and generator code unchanged...
+
+// Write to public/openapi.json so Vercel serves it statically
+const out = path.join(process.cwd(), 'public', 'openapi.json');
+fs.mkdirSync(path.dirname(out), { recursive: true });
+fs.writeFileSync(out, JSON.stringify(doc, null, 2));
+console.log('Wrote', out);
