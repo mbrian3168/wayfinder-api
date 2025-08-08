@@ -10,6 +10,12 @@
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev --name init"
+    "openapi:build": "ts-node scripts/build-openapi.ts",
+"openapi:lint": "redocly lint openapi.json",
+"openapi:check": "node scripts/check-visibility.js",
+"openapi:types": "openapi-typescript openapi.json -o src/types/openapi.d.ts",
+"prebuild": "npm run openapi:build && npm run openapi:lint && npm run openapi:check && npm run openapi:types"
+
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
@@ -18,7 +24,9 @@
     "express": "^4.19.2",
     "firebase-admin": "^12.1.1",
     "helmet": "^7.1.0",
-    "zod": "^3.23.8"
+    "zod": "^3.23.8",
+"@asteasolutions/zod-to-openapi": "^7.1.0"
+
   },
   "devDependencies": {
     "@types/cors": "^2.8.17",
@@ -26,6 +34,9 @@
     "@types/node": "^20.14.2",
     "prisma": "^5.22.0",
     "ts-node-dev": "^2.0.0",
-    "typescript": "^5.4.5"
+    "ts-node": "^10.9.2",
+"typescript": "^5.5.4",
+"@redocly/cli": "^1.16.1",
+"openapi-typescript": "^7.4.2"
   }
 }
