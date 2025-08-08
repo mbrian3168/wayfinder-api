@@ -1,28 +1,25 @@
 {
   "name": "wayfinder-api",
-  "version": "1.0.0",
+  "version": "9.0.0",
   "private": true,
   "description": "Wayfinder API with OpenAPI generation and docs",
   "license": "MIT",
-  "engines": {
-    "node": "20.x"
-  },
+  "engines": { "node": "20.x" },
   "scripts": {
-  "openapi:build": "ts-node scripts/build-openapi.ts",
-  "openapi:lint": "redocly lint openapi.json",
-  "openapi:check": "node scripts/check-visibility.js",
-  "openapi:types": "openapi-typescript openapi.json -o src/types/openapi.d.ts",
-  "vercel-build": "npm run openapi:build && npm run openapi:lint && npm run openapi:check && npm run openapi:types",
-  "build": "npm run vercel-build",
-  "start": "node api/index.js"
-}
-
+    "openapi:build": "ts-node scripts/build-openapi.ts",
+    "openapi:lint": "redocly lint openapi.json",
+    "openapi:check": "node scripts/check-visibility.js",
+    "openapi:types": "openapi-typescript openapi.json -o src/types/openapi.d.ts",
+    "vercel-build": "npm run openapi:build && npm run openapi:lint && npm run openapi:check && npm run openapi:types",
+    "build": "npm run vercel-build"
   },
   "dependencies": {
     "@asteasolutions/zod-to-openapi": "^7.1.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@prisma/client": "^6.13.0",
+    "prisma": "^6.13.0",
     "@redocly/cli": "^1.16.1",
     "openapi-typescript": "^7.4.2",
     "ts-node": "^10.9.2",
