@@ -1,0 +1,82 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Wayfinder — Sample Trip Demo</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 2rem; }
+    button { padding: .6rem 1rem; margin-right: .5rem; }
+    pre { background: #f6f8fa; padding: 1rem; border-radius: .5rem; overflow: auto; }
+    .row { margin: 1rem 0; }
+    .muted { color: #666; }
+  </style>
+</head>
+<body>
+  <h1>Wayfinder — Sample Trip Demo</h1>
+  <p class="muted">This calls your live API on Vercel. Open <a href="/api/docs" target="_blank">/api/docs</a> to see the annotated endpoints.</p>
+
+  <div class="row">
+    <button id="create">1) Create Trip</button>
+    <button id="start" disabled>2) Start Trip</button>
+    <button id="advance" disabled>3) Advance</button>
+    <button id="complete" disabled>4) Complete</button>
+  </div>
+
+  <div class="row"><strong>Trip ID:</strong> <span id="tripId">—</span></div>
+  <div class="row"><strong>Current State:</strong> <span id="state">—</span></div>
+  <div class="row"><strong>Steps:</strong>
+    <ol id="steps"></ol>
+  </div>
+  <h3>Raw Response</h3>
+  <pre id="out">(none)</pre>
+
+  <script>
+    const $ = sel => document.querySelector(sel);
+    const out = data => { $('#out').textContent = JSON.stringify(data, null, 2); render(data); };
+
+    function render(trip) {
+      if (!trip || !trip.id) return;
+      $('#tripId').textContent = trip.id;
+      $('#state').textContent = `${trip.state} (index ${trip.currentIndex})`;
+      const list = $('#steps');
+      list.innerHTML = '';
+      (trip.steps || []).forEach(s => {
+        const li = document.createElement('li');
+        li.textContent = `${s.title} — ${s.status}`;
+        list.appendChild(li);
+      });
+      $('#start').disabled = trip.state !== 'created';
+      $('#advance').disabled = trip.state !== 'started';
+      $('#complete').disabled = trip.state === 'completed';
+    }
+
+    async function POST(url, body) {
+      const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      return r.json();
+    }
+    async function GET(url) { const r = await fetch(url); return r.json(); }
+
+    let id = null;
+
+    $('#create').onclick = async () => {
+      const trip = await POST('/api/trips', {
+        name: 'Royal Caribbean Sail Day',
+        origin: 'Fort Lauderdale, FL',
+        destination: 'Port of Miami',
+        steps: [
+          { title: 'Drive to Port of Miami', detail: 'Garage C, Level 3' },
+          { title: 'Security & Check-in', detail: 'Terminal A' },
+          { title: 'Boarding', detail: 'Deck 5 entrance' }
+        ]
+      });
+      id = trip.id; out(trip);
+      $('#start').disabled = false;
+    };
+
+    $('#start').onclick = async () => { const t = await POST(`/api/trips/${id}/start`, {}); out(t); };
+    $('#advance').onclick = async () => { const t = await POST(`/api/trips/${id}/advance`, {}); out(t); };
+    $('#complete').onclick = async () => { const t = await POST(`/api/trips/${id}/complete`, {}); out(t); };
+  </script>
+</body>
+</html>
