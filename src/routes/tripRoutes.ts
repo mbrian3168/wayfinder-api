@@ -12,19 +12,45 @@ import {
 
 const router = Router();
 
-// All trip routes require a valid user token
+/**
+ * All trip routes require a valid Firebase user token.
+ * (Middleware verifies and attaches req.user)
+ */
 router.use(decodeFirebaseToken);
 
-// POST /v1/trip/start
+/**
+ * POST /v1/trip/start
+ * Body: { origin: {lat,lng}, destination: {lat,lng}, host_id }
+ */
 router.post('/start', validate(startTripSchema), tripController.startTrip);
 
-// PATCH /v1/trip/:id/update
+/**
+ * PATCH /v1/trip/:id/update
+ * Params: { id }
+ * Body: { current_location?, eta_seconds? }
+ */
 router.patch('/:id/update', validate(updateTripSchema), tripController.updateTrip);
 
-// GET /v1/trip/:id/nearby-pois
-router.get('/:id/nearby-pois', validate(nearbyPoisQuerySchema), tripController.getNearbyPois);
+/**
+ * GET /v1/trip/:id/nearby-pois
+ * Params: { id }
+ * Query: { latitude, longitude, radius_meters?, category? }
+ */
+router.get(
+  '/:id/nearby-pois',
+  validate(nearbyPoisQuerySchema),
+  tripController.getNearbyPois
+);
 
-// POST /v1/trip/:id/trigger-event
-router.post('/:id/trigger-event', validate(tripIdParamSchema), tripController.triggerEvent);
+/**
+ * POST /v1/trip/:id/trigger-event
+ * Params: { id }
+ * Body: { eventType, poiId }
+ */
+router.post(
+  '/:id/trigger-event',
+  validate(tripIdParamSchema),
+  tripController.triggerEvent
+);
 
 export default router;
