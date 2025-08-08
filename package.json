@@ -10,6 +10,12 @@
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev --name init"
+    "openapi:build": "ts-node scripts/build-openapi.ts",
+"openapi:lint": "redocly lint openapi.json",
+"openapi:check": "node scripts/check-visibility.js",
+"openapi:types": "openapi-typescript openapi.json -o src/types/openapi.d.ts",
+"prebuild": "npm run openapi:build && npm run openapi:lint && npm run openapi:check && npm run openapi:types"
+
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
