@@ -11,7 +11,7 @@ export default function handler(_req: any, res: any) {
     <div id="swagger"></div>
     <script src="https://unpkg.com/swagger-ui-dist/swagger-ui-bundle.js"></script>
     <script>
-      window.ui = SwaggerUIBundle({ url: '/api/openapi', dom_id: '#swagger' });
+      window.ui = SwaggerUIBundle({ url: '/openapi.json', dom_id: '#swagger' });
     </script>
   </body>
 </html>`;
