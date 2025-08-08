@@ -21,10 +21,121 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Health
+/* --------------------------- Public endpoints --------------------------- */
+
+// Simple HTML landing page (nice for a naked GET /)
+app.get('/', (_req, res) => {
+  res
+    .status(200)
+    .type('html')
+    .send(`
+      <!doctype html>
+      <html lang="en">
+        <head>
+          <meta charset="utf-8" />
+          <meta name="viewport" content="width=device-width, initial-scale=1" />
+          <title>Wayfinder API</title>
+          <style>
+            :root { color-scheme: light dark; }
+            body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; margin: 0; padding: 2rem; }
+            .card { max-width: 800px; margin: 0 auto; padding: 1.5rem; border-radius: 16px; border: 1px solid rgba(128,128,128,.25); }
+            h1 { margin: 0 0 .5rem; font-size: 1.75rem; }
+            code, pre { background: rgba(128,128,128,.08); padding: .25rem .4rem; border-radius: 6px; }
+            ul { line-height: 1.8; }
+            a { text-decoration: none; }
+          </style>
+        </head>
+        <body>
+          <main class="card">
+            <h1>🧭 Wayfinder API</h1>
+            <p>Welcome! The API is live. Try the endpoints below:</p>
+            <ul>
+              <li><a href="/v1">/v1</a> – API index (JSON)</li>
+              <li><a href="/v1/health">/v1/health</a> – health check</li>
+              <li><a href="/v1/status">/v1/status</a> – runtime info</li>
+            </ul>
+            <p>Protected (require Firebase auth):</p>
+            <ul>
+              <li><code>POST /v1/trip/start</code></li>
+              <li><code>PATCH /v1/trip/:id/update</code></li>
+              <li><code>GET /v1/trip/:id/nearby-pois?latitude=...&longitude=...&radius_meters=...</code></li>
+              <li><code>POST /v1/trip/:id/trigger-event</code></li>
+            </ul>
+            <p>Docs placeholder: <a href="/v1/docs">/v1/docs</a></p>
+          </main>
+        </body>
+      </html>
+    `);
+});
+
+// JSON API index (no auth)
+app.get('/v1', (_req, res) => {
+  res.status(200).json({
+    service: 'Wayfinder API',
+    version: 'v1',
+    endpoints: {
+      public: {
+        index: '/v1',
+        health: '/v1/health',
+        status: '/v1/status',
+        docs: '/v1/docs'
+      },
+      trip: {
+        start: 'POST /v1/trip/start',
+        update: 'PATCH /v1/trip/:id/update',
+        nearbyPois: 'GET /v1/trip/:id/nearby-pois?latitude=&longitude=&radius_meters=&category=',
+        triggerEvent: 'POST /v1/trip/:id/trigger-event'
+      },
+      partner: {
+        createPoi: 'POST /v1/partner/:id/poi',
+        scheduleMessage: 'POST /v1/partner/:id/schedule-message'
+      },
+      audio: {
+        stream: 'GET /v1/audio/stream/:message_id',
+        generate: 'POST /v1/audio/generate'
+      },
+      sdk: {
+        init: 'GET /v1/sdk/init',
+        eventReport: 'POST /v1/sdk/event-report'
+      }
+    },
+    docs: 'Visit /v1/docs (placeholder)',
+    repo: 'https://github.com/mbrian3168/wayfinder-api'
+  });
+});
+
+// Health check (simple and fast)
 app.get('/v1/health', (_req, res) => {
   res.status(200).json({ ok: true, service: 'Wayfinder API', version: 'v1' });
 });
+
+// Status (safe runtime info)
+app.get('/v1/status', (_req, res) => {
+  const startedAt = process.env.VERCEL ? undefined : new Date().toISOString();
+  res.status(200).json({
+    ok: true,
+    service: 'Wayfinder API',
+    version: 'v1',
+    node: process.version,
+    env: {
+      vercel: !!process.env.VERCEL,
+      region: process.env.VERCEL_REGION || null,
+      environment: process.env.NODE_ENV || 'production'
+    },
+    uptime_seconds: process.uptime(),
+    started_at: startedAt
+  });
+});
+
+// Docs placeholder (swap to serve OpenAPI later)
+app.get('/v1/docs', (_req, res) => {
+  res.status(200).json({
+    message: 'API docs coming soon. For now, see the repository README.',
+    repo: 'https://github.com/mbrian3168/wayfinder-api'
+  });
+});
+
+/* --------------------------- Auth routes --------------------------- */
 
 // API routes
 app.use('/v1/trip', tripRoutes);
