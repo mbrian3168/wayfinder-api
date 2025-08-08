@@ -2,7 +2,7 @@
 import { Request, Response } from 'express';
 import prisma from '../config/prisma';
 import { haversineDistance } from '../utils/geoUtils';
-import { POI, POICategory, Prisma, Trip } from '@prisma/client';
+import { POI, POICategory, Prisma, Trip, User } from '@prisma/client';
 
 /* -------------------------- Helpers -------------------------- */
 
@@ -23,10 +23,13 @@ const toEnumCategory = (value: string): POICategory | null => {
   }
 };
 
+/**
+ * Build a Prisma where filter for category query param.
+ * Supports: ?category=landmark OR ?category=landmark&category=nature
+ */
 const buildCategoryWhere = (categoryParam: unknown): Prisma.POIWhereInput | undefined => {
   if (!categoryParam) return undefined;
 
-  // Supports ?category=landmark or ?category=landmark&category=nature
   const values: string[] = Array.isArray(categoryParam)
     ? (categoryParam as string[])
     : [String(categoryParam)];
@@ -37,10 +40,21 @@ const buildCategoryWhere = (categoryParam: unknown): Prisma.POIWhereInput | unde
 
   if (mapped.length === 0) return undefined;
 
-  // Single or multiple categories
   return mapped.length === 1
     ? { category: mapped[0] }
     : { category: { in: mapped } };
+};
+
+/**
+ * Resolve or create a Wayfinder User row from Firebase UID.
+ * Assumes auth middleware has attached req.user?.uid
+ */
+const getOrCreateUserByFirebaseUid = async (firebaseUid: string): Promise<User> => {
+  let user = await prisma.user.findUnique({ where: { firebaseUid } });
+  if (!user) {
+    user = await prisma.user.create({ data: { firebaseUid } });
+  }
+  return user;
 };
 
 /* -------------------------- Controllers -------------------------- */
@@ -61,19 +75,23 @@ export const startTrip = async (req: Request, res: Response): Promise<void> => {
       host_id: string;
     };
 
-    // You likely have a Firebase user mapped to a Wayfinder User row.
-    // If you maintain User records, look up by req.user!.uid here.
-    // For MVP, we’ll just create the Trip without user relation (or adapt if needed).
+    const firebaseUid = req.user?.uid;
+    if (!firebaseUid) {
+      res.status(401).json({ error: 'Unauthorized: missing Firebase UID.' });
+      return;
+    }
+
+    const user = await getOrCreateUserByFirebaseUid(firebaseUid);
 
     const trip: Trip = await prisma.trip.create({
       data: {
-        hostId: host_id, // matches Prisma field hostId
+        userId: user.id,               // ✅ required by schema
+        hostId: host_id,
         originLat: origin.latitude,
         originLng: origin.longitude,
         destinationLat: destination.latitude,
         destinationLng: destination.longitude,
-        status: 'ACTIVE', // TripStatus enum default exists in schema too
-        // startedAt set by default? If not, we can set startedAt: new Date()
+        status: 'ACTIVE',
       },
     });
 
@@ -90,26 +108,25 @@ export const startTrip = async (req: Request, res: Response): Promise<void> => {
  *   current_location?: { latitude, longitude },
  *   eta_seconds?: number
  * }
+ *
+ * NOTE: If you want to persist current location or ETA, add fields to the Trip model
+ * and update here accordingly. For now, this is a no-op update (keeps API shape).
  */
 export const updateTrip = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const { current_location, eta_seconds } = req.body as {
-      current_location?: { latitude: number; longitude: number };
-      eta_seconds?: number;
-    };
+    // const { current_location, eta_seconds } = req.body as {
+    //   current_location?: { latitude: number; longitude: number };
+    //   eta_seconds?: number;
+    // };
 
-    // Your Prisma Trip model (from earlier schema) does not define current_lat/lng columns.
-    // If you want to persist current location, add fields in Prisma schema and migrate.
-    // For now, we’ll just update status/placeholder fields if present.
     const trip = await prisma.trip.update({
       where: { id },
       data: {
-        // Example: store ETA in a Json field or a dedicated column if you add one later
-        // etaSeconds: eta_seconds,  <-- add to schema if desired
+        // Example (uncomment after adding fields in Prisma schema):
         // currentLat: current_location?.latitude,
         // currentLng: current_location?.longitude,
-        // updatedAt: new Date(),   <-- add mapped column or use @@updatedAt
+        // etaSeconds: eta_seconds,
       },
     });
 
@@ -125,7 +142,8 @@ export const updateTrip = async (req: Request, res: Response): Promise<void> => 
  * Query: latitude, longitude, radius_meters?, category? (string or string[])
  *
  * Tries PostGIS (ST_DWithin/ST_DistanceSphere) with parameterized query.
- * Falls back to Haversine + in-app filter if PostGIS functions are unavailable.
+ * Falls back to Haversine + in-app filter if PostGIS functions are unavailable
+ * or if multiple categories were provided.
  */
 export const getNearbyPois = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -140,45 +158,42 @@ export const getNearbyPois = async (req: Request, res: Response): Promise<void> 
       return;
     }
 
+    // Build Prisma where
     const where = buildCategoryWhere(category);
 
-    // Attempt PostGIS path
-    try {
-      // Convert categories to Postgres enum text (optional filter)
-      // Using parameterized query to avoid injection.
-      const hasCategoryFilter = !!where?.category;
+    // If supplied categories collapse to a single value, try PostGIS.
+    // If multiple categories (where.category is an { in: [...] }), skip PostGIS and do Haversine.
+    const singleCategory: POICategory | null =
+      typeof where?.category === 'string'
+        ? (where!.category as POICategory)
+        : null;
 
-      type Row = POI & { distance: number };
-      const rows: Row[] = await prisma.$queryRaw<
-        Row[]
-      >`
-        SELECT p.*,
-               ST_DistanceSphere(
-                 ST_MakePoint(p."longitude", p."latitude"),
-                 ST_MakePoint(${lng}, ${lat})
-               ) AS distance
-        FROM "POI" AS p
-        WHERE ${hasCategoryFilter
-          ? Prisma.sql`p."category" = ${(
-              (where!.category as POICategory) ??
-              ((where!.category as Prisma.EnumPOICategoryFilter<'POI'>)?.in?.[0] as POICategory)
-            )}`
-          : Prisma.sql`TRUE`}
-          AND ST_DWithin(
-            ST_MakePoint(p."longitude", p."latitude")::geography,
-            ST_MakePoint(${lng}, ${lat})::geography,
-            ${radius}
-          )
-        ORDER BY distance ASC
-      `;
-
-      res.json(rows);
-      return;
-    } catch (err) {
-      console.warn('PostGIS not available, falling back to Haversine:', err);
+    if (singleCategory) {
+      try {
+        type Row = POI & { distance: number };
+        const rows = await prisma.$queryRaw<Row[]>`
+          SELECT p.*,
+                 ST_DistanceSphere(
+                   ST_MakePoint(p."longitude", p."latitude"),
+                   ST_MakePoint(${lng}, ${lat})
+                 ) AS distance
+          FROM "POI" AS p
+          WHERE p."category" = ${singleCategory}
+            AND ST_DWithin(
+              ST_MakePoint(p."longitude", p."latitude")::geography,
+              ST_MakePoint(${lng}, ${lat})::geography,
+              ${radius}
+            )
+          ORDER BY distance ASC
+        `;
+        res.json(rows);
+        return;
+      } catch (err) {
+        console.warn('PostGIS path failed; falling back to Haversine:', err);
+      }
     }
 
-    // Fallback: fetch POIs and filter by Haversine distance
+    // Fallback: fetch via Prisma and filter/sort in app
     const allPois: POI[] = await prisma.pOI.findMany({ where });
     const withDistance: (POI & { distance: number })[] = allPois
       .map((poi: POI) => {
