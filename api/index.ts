@@ -1,6 +1,1 @@
-// api/index.ts
-import app from '../src/app';
-
-// Vercel will detect and wrap this Express app automatically.
-// Do NOT call app.listen() here.
-export default app;
+import { VercelRequest, VercelResponse } from '@vercel/node';\nimport app from '../src/app';\n\nexport default function handler(req: VercelRequest, res: VercelResponse) {\n  return app(req, res);\n}\n
