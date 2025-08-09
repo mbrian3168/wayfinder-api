@@ -3,6 +3,7 @@ import { Router } from 'express';
 import * as tripController from '../controllers/tripController';
 import { decodeFirebaseToken } from '../middleware/authMiddleware';
 import { validate } from '../middleware/validationMiddleware';
+import { tripCreationLimiter } from '../middleware/rateLimiter';
 import {
   startTripSchema,
   updateTripSchema,
@@ -21,6 +22,7 @@ router.use(decodeFirebaseToken);
 /**
  * POST /v1/trip/start
  * Body: { origin: {lat,lng}, destination: {lat,lng}, host_id }
+ * Extra rate limiting applied in app.ts
  */
 router.post('/start', validate(startTripSchema), tripController.startTrip);
 

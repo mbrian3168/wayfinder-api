@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { AnyZodObject, ZodError } from 'zod';
+import { ValidationError } from '../utils/errors';
 
 export const validate =
   (schema: AnyZodObject) =>
@@ -13,8 +14,23 @@ export const validate =
       return next();
     } catch (error: unknown) {
       if (error instanceof ZodError) {
-        return res.status(400).json(error.issues);
+        const formattedErrors = error.issues.map(issue => ({
+          field: issue.path.join('.'),
+          message: issue.message,
+          code: issue.code,
+        }));
+        
+        console.warn('🚨 Validation failed:', {
+          requestId: req.id,
+          url: req.url,
+          method: req.method,
+          errors: formattedErrors,
+        });
+        
+        const validationError = new ValidationError('Request validation failed');
+        (validationError as any).details = formattedErrors;
+        throw validationError;
       }
-      return res.status(500).json({ message: 'Internal server error' });
+      throw new ValidationError('Validation error occurred');
     }
   };

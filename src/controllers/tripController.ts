@@ -3,6 +3,8 @@ import { Request, Response } from 'express';
 import prisma from '../config/prisma';
 import { haversineDistance } from '../utils/geoUtils';
 import { POI, POICategory, Prisma, Trip, User } from '@prisma/client';
+import { asyncHandler } from '../middleware/errorHandler';
+import { NotFoundError, UnauthorizedError, ForbiddenError, ValidationError } from '../utils/errors';
 
 /* -------------------------- Helpers -------------------------- */
 
@@ -67,8 +69,8 @@ const getOrCreateUserByFirebaseUid = async (firebaseUid: string): Promise<User> 
  *   host_id: string (uuid)
  * }
  */
-export const startTrip = async (req: Request, res: Response): Promise<void> => {
-  try {
+export const startTrip = asyncHandler(
+  async (req: Request, res: Response): Promise<void> => {
     const { origin, destination, host_id } = req.body as {
       origin: { latitude: number; longitude: number };
       destination: { latitude: number; longitude: number };
@@ -77,15 +79,20 @@ export const startTrip = async (req: Request, res: Response): Promise<void> => {
 
     const firebaseUid = req.user?.uid;
     if (!firebaseUid) {
-      res.status(401).json({ error: 'Unauthorized: missing Firebase UID.' });
-      return;
+      throw new UnauthorizedError('User authentication required');
+    }
+
+    // Verify host exists
+    const host = await prisma.hostProfile.findUnique({ where: { id: host_id } });
+    if (!host) {
+      throw new ValidationError('Invalid host_id: Host profile not found');
     }
 
     const user = await getOrCreateUserByFirebaseUid(firebaseUid);
 
     const trip: Trip = await prisma.trip.create({
       data: {
-        userId: user.id,               // ✅ required by schema
+        userId: user.id,
         hostId: host_id,
         originLat: origin.latitude,
         originLng: origin.longitude,
@@ -95,12 +102,17 @@ export const startTrip = async (req: Request, res: Response): Promise<void> => {
       },
     });
 
+    console.log(`🚀 Trip started: ${trip.id}`, {
+      requestId: req.id,
+      userId: firebaseUid,
+      hostId: host_id,
+      origin: `${origin.latitude},${origin.longitude}`,
+      destination: `${destination.latitude},${destination.longitude}`,
+    });
+
     res.status(201).json(trip);
-  } catch (error) {
-    console.error('Error starting trip:', error);
-    res.status(500).json({ error: 'Failed to start trip.' });
   }
-};
+);
 
 /**
  * PATCH /v1/trip/:id/update
@@ -108,34 +120,64 @@ export const startTrip = async (req: Request, res: Response): Promise<void> => {
  *   current_location?: { latitude, longitude },
  *   eta_seconds?: number
  * }
- *
- * NOTE: If you want to persist current location or ETA, add fields to the Trip model
- * and update here accordingly. For now, this is a no-op update (keeps API shape).
  */
-export const updateTrip = async (req: Request, res: Response): Promise<void> => {
-  try {
+export const updateTrip = asyncHandler(
+  async (req: Request, res: Response): Promise<void> => {
     const { id } = req.params;
-    // const { current_location, eta_seconds } = req.body as {
-    //   current_location?: { latitude: number; longitude: number };
-    //   eta_seconds?: number;
-    // };
+    const { current_location, eta_seconds } = req.body as {
+      current_location?: { latitude: number; longitude: number };
+      eta_seconds?: number;
+    };
+
+    const firebaseUid = req.user?.uid;
+    if (!firebaseUid) {
+      throw new UnauthorizedError('User authentication required');
+    }
+
+    // Verify the trip exists and belongs to the user
+    const existingTrip = await prisma.trip.findUnique({
+      where: { id },
+      include: { user: true },
+    });
+
+    if (!existingTrip) {
+      throw new NotFoundError('Trip not found');
+    }
+
+    if (existingTrip.user.firebaseUid !== firebaseUid) {
+      throw new ForbiddenError('Access denied: Trip belongs to another user');
+    }
+
+    // Prepare update data
+    const updateData: any = {};
+    
+    // For now, we'll store current location in existing lat/lng fields
+    // TODO: Add dedicated currentLat/currentLng fields to schema
+    if (current_location) {
+      updateData.originLat = current_location.latitude;
+      updateData.originLng = current_location.longitude;
+    }
+    
+    // TODO: Add etaSeconds field to Trip model
+    // if (eta_seconds) {
+    //   updateData.etaSeconds = eta_seconds;
+    // }
 
     const trip = await prisma.trip.update({
       where: { id },
-      data: {
-        // Example (uncomment after adding fields in Prisma schema):
-        // currentLat: current_location?.latitude,
-        // currentLng: current_location?.longitude,
-        // etaSeconds: eta_seconds,
-      },
+      data: updateData,
+    });
+
+    console.log(`🚗 Trip updated: ${id}`, {
+      requestId: req.id,
+      userId: firebaseUid,
+      hasLocation: !!current_location,
+      hasEta: !!eta_seconds,
     });
 
     res.status(200).json(trip);
-  } catch (error) {
-    console.error('Error updating trip:', error);
-    res.status(500).json({ error: 'Failed to update trip.' });
   }
-};
+);
 
 /**
  * GET /v1/trip/:id/nearby-pois
@@ -145,8 +187,8 @@ export const updateTrip = async (req: Request, res: Response): Promise<void> => 
  * Falls back to Haversine + in-app filter if PostGIS functions are unavailable
  * or if multiple categories were provided.
  */
-export const getNearbyPois = async (req: Request, res: Response): Promise<void> => {
-  try {
+export const getNearbyPois = asyncHandler(
+  async (req: Request, res: Response): Promise<void> => {
     const { latitude, longitude, radius_meters = '5000', category } = req.query;
 
     const lat: number = parseFloat(String(latitude));
@@ -154,15 +196,33 @@ export const getNearbyPois = async (req: Request, res: Response): Promise<void> 
     const radius: number = parseFloat(String(radius_meters));
 
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
-      res.status(400).json({ error: 'Invalid latitude/longitude.' });
-      return;
+      throw new ValidationError('Invalid latitude/longitude');
+    }
+
+    const firebaseUid = req.user?.uid;
+    if (!firebaseUid) {
+      throw new UnauthorizedError('User authentication required');
+    }
+
+    // Verify the trip exists and belongs to the user
+    const { id } = req.params;
+    const trip = await prisma.trip.findUnique({
+      where: { id },
+      include: { user: true },
+    });
+
+    if (!trip) {
+      throw new NotFoundError('Trip not found');
+    }
+
+    if (trip.user.firebaseUid !== firebaseUid) {
+      throw new ForbiddenError('Access denied: Trip belongs to another user');
     }
 
     // Build Prisma where
     const where = buildCategoryWhere(category);
 
     // If supplied categories collapse to a single value, try PostGIS.
-    // If multiple categories (where.category is an { in: [...] }), skip PostGIS and do Haversine.
     const singleCategory: POICategory | null =
       typeof where?.category === 'string'
         ? (where!.category as POICategory)
@@ -186,6 +246,15 @@ export const getNearbyPois = async (req: Request, res: Response): Promise<void> 
             )
           ORDER BY distance ASC
         `;
+        
+        console.log(`📍 Found ${rows.length} nearby POIs (PostGIS)`, {
+          requestId: req.id,
+          tripId: id,
+          location: `${lat},${lng}`,
+          radius,
+          category: singleCategory,
+        });
+        
         res.json(rows);
         return;
       } catch (err) {
@@ -203,12 +272,17 @@ export const getNearbyPois = async (req: Request, res: Response): Promise<void> 
       .filter((poi) => poi.distance <= radius)
       .sort((a, b) => a.distance - b.distance);
 
+    console.log(`📍 Found ${withDistance.length} nearby POIs (Haversine)`, {
+      requestId: req.id,
+      tripId: id,
+      location: `${lat},${lng}`,
+      radius,
+      totalChecked: allPois.length,
+    });
+
     res.json(withDistance);
-  } catch (error) {
-    console.error('Error fetching nearby POIs:', error);
-    res.status(500).json({ error: 'Failed to fetch nearby POIs.' });
   }
-};
+);
 
 /**
  * POST /v1/trip/:id/trigger-event
@@ -216,17 +290,44 @@ export const getNearbyPois = async (req: Request, res: Response): Promise<void> 
  *
  * Stub implementation — add TripEvent model if you want to persist these.
  */
-export const triggerEvent = async (req: Request, res: Response): Promise<void> => {
-  try {
+export const triggerEvent = asyncHandler(
+  async (req: Request, res: Response): Promise<void> => {
     const { id } = req.params;
     const { eventType, poiId } = req.body as { eventType: string; poiId?: string };
 
-    // If you add a TripEvent model, create it here.
-    console.log(`Trip ${id} event: ${eventType}${poiId ? ` @ POI ${poiId}` : ''}`);
+    const firebaseUid = req.user?.uid;
+    if (!firebaseUid) {
+      throw new UnauthorizedError('User authentication required');
+    }
 
-    res.status(201).json({ ok: true });
-  } catch (error) {
-    console.error('Error triggering event:', error);
-    res.status(500).json({ error: 'Failed to trigger event.' });
+    // Verify the trip exists and belongs to the user
+    const trip = await prisma.trip.findUnique({
+      where: { id },
+      include: { user: true },
+    });
+
+    if (!trip) {
+      throw new NotFoundError('Trip not found');
+    }
+
+    if (trip.user.firebaseUid !== firebaseUid) {
+      throw new ForbiddenError('Access denied: Trip belongs to another user');
+    }
+
+    // TODO: Add TripEvent model to persist these events
+    console.log(`🎬 Trip event triggered: ${eventType}`, {
+      requestId: req.id,
+      tripId: id,
+      eventType,
+      poiId,
+      userId: firebaseUid,
+    });
+
+    res.status(201).json({ 
+      ok: true, 
+      eventType, 
+      tripId: id,
+      timestamp: new Date().toISOString() 
+    });
   }
-};
+);

@@ -1,13 +1,14 @@
 // src/app.ts
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
 import path from 'path';
 import fs from 'fs';
+import { env } from './config/environment';
 import { initializeFirebase } from './config/firebase';
-
-// Load env
-dotenv.config();
+import { requestId } from './middleware/requestId';
+import { errorHandler } from './middleware/errorHandler';
+import { generalLimiter, authLimiter, tripCreationLimiter, partnerLimiter } from './middleware/rateLimiter';
+import prisma from './config/prisma';
 
 // Initialize Firebase Admin (idempotent)
 initializeFirebase();
@@ -19,9 +20,23 @@ import sdkRoutes from './routes/sdkRoutes';
 
 const app = express();
 
-// Middleware
-app.use(cors());
-app.use(express.json());
+// Trust proxy for rate limiting (important for Vercel)
+app.set('trust proxy', 1);
+
+// Global middleware
+app.use(requestId);
+app.use(generalLimiter);
+
+// CORS configuration
+const corsOptions = {
+  origin: env.ALLOWED_ORIGINS.split(',').map(origin => origin.trim()),
+  credentials: true,
+  optionsSuccessStatus: 200, // Some legacy browsers choke on 204
+};
+app.use(cors(corsOptions));
+
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 /* --------------------------- Public endpoints --------------------------- */
 
@@ -106,9 +121,28 @@ app.get('/v1', (_req, res) => {
   });
 });
 
-// Health
-app.get('/v1/health', (_req, res) => {
-  res.status(200).json({ ok: true, service: 'Wayfinder API', version: 'v1' });
+// Health with database connectivity check
+app.get('/v1/health', async (_req, res) => {
+  try {
+    // Test database connectivity
+    await prisma.$queryRaw`SELECT 1`;
+    res.status(200).json({ 
+      ok: true, 
+      service: 'Wayfinder API', 
+      version: 'v1',
+      database: 'connected',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Health check failed:', error);
+    res.status(503).json({ 
+      ok: false, 
+      service: 'Wayfinder API', 
+      version: 'v1',
+      database: 'disconnected',
+      timestamp: new Date().toISOString()
+    });
+  }
 });
 
 // Status
@@ -171,9 +205,25 @@ app.get('/v1/docs', (_req, res) => {
 });
 
 /* --------------------------- Auth-protected routes --------------------------- */
-app.use('/v1/trip', tripRoutes);
-app.use('/v1/partner', partnerRoutes);
-app.use('/v1/audio', audioRoutes);
-app.use('/v1/sdk', sdkRoutes);
+// Apply specific rate limiters to different route groups
+app.use('/v1/trip/start', tripCreationLimiter);
+app.use('/v1/trip', authLimiter, tripRoutes);
+app.use('/v1/partner', partnerLimiter, partnerRoutes);
+app.use('/v1/audio', authLimiter, audioRoutes);
+app.use('/v1/sdk', authLimiter, sdkRoutes);
+
+// 404 handler for undefined routes
+app.use('*', (req, res) => {
+  res.status(404).json({
+    error: {
+      message: `Route ${req.method} ${req.originalUrl} not found`,
+      code: 'ROUTE_NOT_FOUND',
+      timestamp: new Date().toISOString(),
+    },
+  });
+});
+
+// Global error handler (must be last)
+app.use(errorHandler);
 
 export default app;
