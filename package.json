@@ -19,7 +19,9 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "lint": "eslint src --ext .ts",
-    "format": "prettier --write src/**/*.ts"
+    "format": "prettier --write src/**/*.ts",
+    "deploy:test": "node scripts/deploy-test.js",
+    "deploy:full": "vercel --prod && npm run deploy:test"
   },
   "dependencies": {
     "@asteasolutions/zod-to-openapi": "^7.1.0",

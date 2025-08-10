@@ -1,50 +1,36 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
 import app from '../src/app';
 
-// Main serverless function that serves the complete Express application
+// Export the Express app as a Vercel serverless function
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
-    // Set comprehensive CORS headers for all requests
+    // Add Vercel-specific headers for CORS
     res.setHeader('Access-Control-Allow-Credentials', 'true');
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
     res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization, x-api-key, x-request-id');
     res.setHeader('Access-Control-Max-Age', '86400');
 
-    // Handle preflight OPTIONS requests
+    // Handle preflight requests
     if (req.method === 'OPTIONS') {
       res.status(200).end();
       return;
     }
 
-    // Configure Express app for Vercel serverless environment
+    // Trust proxy for Vercel
     app.set('trust proxy', 1);
-    
-    // Set environment context
-    process.env.VERCEL = '1';
-    if (!process.env.NODE_ENV) {
-      process.env.NODE_ENV = 'production';
-    }
 
-    // Log request for debugging (will appear in Vercel logs)
-    console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
-
-    // Delegate to Express app
+    // Handle the request with the Express app
     return app(req, res);
-    
   } catch (error: any) {
     console.error('Vercel serverless function error:', error);
-    
-    // Return comprehensive error information
     return res.status(500).json({ 
       error: {
-        message: 'Internal server error in Vercel function',
+        message: 'Internal server error',
         details: error.message,
-        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
         timestamp: new Date().toISOString(),
         service: 'Wayfinder API',
-        version: '9.0.0',
-        environment: 'vercel-serverless'
+        version: '9.0.0'
       }
     });
   }
