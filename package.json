@@ -4,7 +4,9 @@
   "private": true,
   "description": "Wayfinder API with OpenAPI generation and docs",
   "license": "MIT",
-  "engines": { "node": "20.x" },
+  "engines": {
+    "node": "20.x"
+  },
   "scripts": {
     "openapi:build": "npx ts-node scripts/build-openapi.ts",
     "openapi:lint": "redocly lint openapi.json",
@@ -21,7 +23,9 @@
   },
   "dependencies": {
     "@asteasolutions/zod-to-openapi": "^7.1.0",
+    "@google-cloud/text-to-speech": "^6.2.0",
     "@prisma/client": "^6.13.0",
+    "@vercel/blob": "^1.1.1",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",

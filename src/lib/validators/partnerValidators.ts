@@ -17,7 +17,7 @@ const categoryTransform = z
 
 export const createPoiSchema = z.object({
   params: z.object({
-    id: z.string().uuid('Invalid Partner ID format.')
+    id: z.string().min(1, 'Partner ID is required')
   }),
   body: z.object({
     name: z.string().min(1, 'Name is required'),
@@ -33,7 +33,7 @@ export const createPoiSchema = z.object({
 
 export const scheduleMessageSchema = z.object({
   params: z.object({
-    id: z.string().uuid('Invalid Partner ID format.')
+    id: z.string().min(1, 'Partner ID is required')
   }),
   body: z.object({
     poi_id: z.string().uuid('Invalid POI ID format.'),

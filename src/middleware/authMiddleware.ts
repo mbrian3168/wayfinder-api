@@ -35,7 +35,7 @@ export const decodeFirebaseToken = asyncHandler(
       });
       
       next();
-    } catch (error) {
+    } catch (error: any) {
       console.error('🚫 Firebase token verification failed:', {
         error: error.message,
         requestId: req.id,
