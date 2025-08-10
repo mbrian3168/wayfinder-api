@@ -12,7 +12,7 @@
     "openapi:lint": "redocly lint openapi.json",
     "openapi:check": "node scripts/check-visibility.js",
     "openapi:types": "openapi-typescript openapi.json -o src/types/openapi.d.ts",
-    "vercel-build": "echo 'Build completed - serverless functions ready'",
+    "vercel-build": "npx tsc",
     "build": "npm run vercel-build && npx tsc",
     "start": "node dist/server.js",
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
