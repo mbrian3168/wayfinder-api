@@ -64,7 +64,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (url === '/v1/docs') {
-      return res.status(200).type('html').send(`
+      res.setHeader('Content-Type', 'text/html');
+      return res.status(200).send(`
         <!DOCTYPE html>
         <html>
           <head><title>Wayfinder API Docs</title></head>
@@ -78,6 +79,33 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           </body>
         </html>
       `);
+    }
+
+    // Handle authentication-required routes
+    if (url?.startsWith('/v1/trip/')) {
+      const authHeader = req.headers.authorization;
+      if (!authHeader) {
+        return res.status(401).json({
+          error: {
+            message: 'Authorization header is required',
+            code: 'UNAUTHORIZED',
+            timestamp: new Date().toISOString()
+          }
+        });
+      }
+    }
+
+    if (url?.startsWith('/v1/partner/')) {
+      const apiKey = req.headers['x-api-key'];
+      if (!apiKey) {
+        return res.status(401).json({
+          error: {
+            message: 'API key is required in x-api-key header',
+            code: 'UNAUTHORIZED', 
+            timestamp: new Date().toISOString()
+          }
+        });
+      }
     }
 
     // Default response for any other route
