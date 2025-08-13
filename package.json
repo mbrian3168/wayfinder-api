@@ -21,7 +21,9 @@
     "lint": "eslint src --ext .ts",
     "format": "prettier --write src/**/*.ts",
     "deploy:test": "node scripts/deploy-test.js",
-    "deploy:full": "vercel --prod && npm run deploy:test"
+    "deploy:full": "vercel --prod && npm run deploy:test",
+    "validate": "node scripts/validate-api.js && node scripts/validate-schemas.js",
+    "test:api": "node scripts/test-api-endpoints.js"
   },
   "dependencies": {
     "@asteasolutions/zod-to-openapi": "^7.1.0",
