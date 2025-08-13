@@ -9,6 +9,8 @@ interface AuthContextType {
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
+  demoMode: boolean;
+  enableDemoMode: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -16,6 +18,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [demoMode, setDemoMode] = useState(false);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -38,17 +41,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = async () => {
     try {
       await signOut(auth);
+      setDemoMode(false);
     } catch (error) {
       console.error('Sign out error:', error);
       throw error;
     }
   };
 
+  const enableDemoMode = () => {
+    setDemoMode(true);
+    setLoading(false);
+  };
+
   const value = {
-    user,
-    loading,
+    user: demoMode ? { uid: 'demo-user', email: 'demo@wayfinder.com' } as User : user,
+    loading: demoMode ? false : loading,
     signIn,
     logout,
+    demoMode,
+    enableDemoMode,
   };
 
   return (

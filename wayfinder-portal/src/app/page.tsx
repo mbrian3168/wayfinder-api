@@ -12,7 +12,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const { signIn } = useAuth();
+  const { signIn, enableDemoMode } = useAuth();
   const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -28,6 +28,11 @@ export default function LoginPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleDemoMode = () => {
+    enableDemoMode();
+    router.push('/dashboard');
   };
 
   return (
@@ -139,6 +144,21 @@ export default function LoginPage() {
                 {loading ? 'Signing in...' : 'Sign in'}
               </Button>
             </form>
+            
+            {/* Demo Mode Button */}
+            <div className="mt-4 pt-4 border-t border-gray-200">
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                onClick={handleDemoMode}
+              >
+                🚀 Try Demo Mode
+              </Button>
+              <p className="text-xs text-gray-500 text-center mt-2">
+                Explore the portal without authentication
+              </p>
+            </div>
           </CardContent>
         </Card>
       </div>
